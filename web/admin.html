@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · ACCESS PASS</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div id="login-screen" class="login-screen">
+    <form id="login-form" class="login-card">
+      <img src="/assets/logo.png" alt="ACCESS PASS" />
+      <p class="eyebrow">ADMIN</p>
+      <h1>Sign in</h1>
+      <label>USERNAME <input id="login-user" autocomplete="username" /></label>
+      <label>PASSWORD <input id="login-pass" type="password" autocomplete="current-password" /></label>
+      <button class="primary" type="submit">ENTER</button>
+      <p id="login-status" class="status"></p>
+    </form>
+  </div>
+
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <img class="logo" src="/assets/logo.png" alt="ACCESS PASS" />
+      <nav>
+        <button class="nav-btn active" data-page="register">REGISTER</button>
+        <button class="nav-btn" data-page="people">PEOPLE</button>
+        <button class="nav-btn" data-page="shifts">SHIFTS</button>
+        <button class="nav-btn" data-page="reports">REPORTS</button>
+      </nav>
+      <button id="btn-logout" class="nav-btn" type="button">SIGN OUT</button>
+      <a class="tagline" href="/employee">Employee screen →</a>
+    </aside>
+
+    <main class="content">
+      <section id="page-register" class="page active">
+        <p class="eyebrow">ADMIN</p>
+        <h1>Register employee</h1>
+        <p class="lede" id="register-lede">Auto capture with voice. At clock-in the shift is identified from time. Hours still use actual clock in/out.</p>
+        <p id="edit-banner" class="banner hidden">Editing employee — save details, or recapture the face.</p>
+
+        <div class="card form-grid-3">
+          <label>
+            FULL NAME
+            <input id="enroll-name" type="text" placeholder="Employee name" />
+          </label>
+          <label>
+            EMPLOYEE ID
+            <input id="enroll-id" type="text" placeholder="Unique ID" />
+          </label>
+          <label>
+            USUAL SHIFT (OPTIONAL)
+            <select id="enroll-shift"></select>
+          </label>
+        </div>
+
+        <div class="viewfinder">
+          <video id="enroll-video" autoplay playsinline muted webkit-playsinline></video>
+          <div class="corners"></div>
+        </div>
+
+        <div class="capture-row">
+          <div id="enroll-dots" class="dots"></div>
+          <span id="enroll-count" class="muted">0 / 5</span>
+          <span id="enroll-status" class="status"></span>
+        </div>
+
+        <div class="actions">
+          <button id="btn-auto" class="primary" type="button">START AUTO CAPTURE</button>
+          <button id="btn-save-person" class="ghost hidden" type="button">SAVE DETAILS</button>
+          <button id="btn-cancel-edit" class="ghost hidden" type="button">CANCEL EDIT</button>
+          <button id="btn-stop" class="ghost" type="button" disabled>STOP</button>
+        </div>
+        <p id="enroll-success" class="banner hidden">✓ EMPLOYEE REGISTERED</p>
+      </section>
+
+      <section id="page-people" class="page">
+        <p class="eyebrow">ADMIN</p>
+        <h1>Employees</h1>
+        <p class="lede">Edit name, ID, usual shift, or face. Delete removes the person and their sessions.</p>
+        <p id="people-status" class="status"></p>
+        <div class="table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Usual shift</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="people-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="page-shifts" class="page">
+        <p class="eyebrow">ADMIN</p>
+        <h1>Static shifts</h1>
+        <p class="lede">Clock-in auto-assigns the matching window. After midnight stays the same work date.</p>
+        <div class="card form-grid-3">
+          <label>NAME <input id="shift-name" placeholder="Night" /></label>
+          <label>START <input id="shift-start" type="time" value="20:00" /></label>
+          <label>END <input id="shift-end" type="time" value="04:00" /></label>
+        </div>
+        <button id="btn-add-shift" class="primary" type="button">ADD SHIFT</button>
+        <p id="shift-status" class="status"></p>
+        <div id="shift-list" class="log-list"></div>
+      </section>
+
+      <section id="page-reports" class="page">
+        <p class="eyebrow">ADMIN</p>
+        <h1>Hours report</h1>
+        <p class="lede">Daily, weekly, or monthly. Under 8h red · 8h green · over 8h purple. Late is flagged; hours are still actual time worked.</p>
+        <div class="card form-grid-3">
+          <label>
+            PERIOD
+            <select id="report-period">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </label>
+          <label>
+            DATE
+            <input id="report-date" type="date" />
+          </label>
+          <div class="actions report-actions">
+            <a id="btn-pdf" class="primary link-btn" href="#">PDF</a>
+            <a id="btn-xlsx" class="ghost link-btn" href="#">EXCEL</a>
+          </div>
+        </div>
+        <p id="report-range" class="muted"></p>
+        <div class="table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Shift</th>
+                <th>Clock in</th>
+                <th>Clock out</th>
+                <th>Total hours</th>
+                <th>Late</th>
+              </tr>
+            </thead>
+            <tbody id="report-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <canvas id="work-canvas" hidden></canvas>
+  <script src="/static/js/shared.js"></script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>
