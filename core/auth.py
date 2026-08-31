@@ -26,8 +26,12 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_token(username: str) -> str:
-    payload = {"u": username, "exp": int(time.time()) + TOKEN_HOURS * 3600}
+def create_token(username: str, role: str = "admin") -> str:
+    payload = {
+        "u": username,
+        "r": role,
+        "exp": int(time.time()) + TOKEN_HOURS * 3600,
+    }
     body = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()
     sig = hmac.new(JWT_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
     return f"{body}.{sig}"
@@ -42,6 +46,12 @@ def read_token(token: str) -> str | None:
         payload = json.loads(base64.urlsafe_b64decode(body + "=="))
         if int(payload.get("exp") or 0) < time.time():
             return None
-        return str(payload.get("u") or "")
+        username = str(payload.get("u") or "")
+        if not username:
+            return None
+        role = str(payload.get("r") or "admin")
+        if role not in ("super", "admin"):
+            role = "admin"
+        return {"username": username, "role": role}
     except (ValueError, json.JSONDecodeError, TypeError):
         return None

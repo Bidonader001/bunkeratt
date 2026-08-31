@@ -53,7 +53,7 @@ function unlockSpeech() {
 
 async function startCamera(videoEl) {
   if (!window.isSecureContext) {
-    throw new Error("Camera needs https. Open the Cloudflare URL, not http://IP.");
+    throw new Error("Camera needs https. On your phone open https://YOUR-PC-IP:8000 (accept the warning).");
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     throw new Error("Use Safari on iPad, and allow the camera.");

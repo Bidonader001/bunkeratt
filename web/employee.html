@@ -7,34 +7,41 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <title>Employee · ACCESS PASS</title>
   <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
-<body class="kiosk">
+<body class="kiosk" data-state="scanning">
   <header class="kiosk-bar">
     <img src="/assets/logo.png" alt="ACCESS PASS" />
-    <a href="/">Home</a>
+    <div class="kiosk-bar-right">
+      <span id="kiosk-time" class="kiosk-time"></span>
+      <a href="/">Home</a>
+    </div>
   </header>
   <main class="kiosk-main">
     <div class="viewfinder kiosk-cam">
       <video id="video" autoplay playsinline muted webkit-playsinline></video>
       <div class="corners"></div>
+      <div class="scan-line"></div>
       <button id="btn-enable-cam" class="cam-gate" type="button">Tap to start camera</button>
     </div>
     <aside class="kiosk-panel">
-      <p class="eyebrow" id="state-label">SCANNING</p>
+      <p class="eyebrow state-chip" id="state-label">Scanning</p>
       <h1 id="hello">Look at the camera</h1>
       <p class="lede" id="sub">You will be clocked in automatically.</p>
       <p class="scan-status" id="meta"></p>
-      <button id="btn-clockout" class="primary hidden" type="button">CLOCK OUT</button>
+      <button id="btn-clockout" class="primary hidden" type="button">Clock out</button>
     </aside>
   </main>
   <div id="modal" class="modal hidden">
     <div class="modal-card">
-      <p class="eyebrow">CLOCK OUT</p>
+      <p class="eyebrow">Clock out</p>
       <h2 id="modal-text">Hi, are you ready to clock out?</h2>
       <div class="actions">
-        <button id="btn-confirm-out" class="primary" type="button">YES, CLOCK OUT</button>
-        <button id="btn-cancel-out" class="ghost" type="button">CANCEL</button>
+        <button id="btn-confirm-out" class="primary" type="button">Yes, clock out</button>
+        <button id="btn-cancel-out" class="ghost" type="button">Cancel</button>
       </div>
     </div>
   </div>

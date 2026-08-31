@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pickle
 import sqlite3
 from datetime import datetime
@@ -55,7 +56,8 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'admin'
             );
 
             CREATE TABLE IF NOT EXISTS work_sessions (
@@ -91,23 +93,30 @@ def init_db() -> None:
             if col not in sess_cols:
                 conn.execute(f"ALTER TABLE work_sessions ADD COLUMN {col} {decl}")
 
+        user_cols = _columns(conn, "users")
+        if "role" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'")
+
+        from core.auth import hash_password
+
+        super_name = os.getenv("SUPER_USERNAME", "bido001")
+        super_pass = os.getenv("SUPER_PASSWORD", "b6102001")
+        existing_super = conn.execute(
+            "SELECT id, username FROM users WHERE username = ?", (super_name,)
+        ).fetchone()
+        if existing_super is None:
+            conn.execute(
+                "INSERT INTO users (username, password_hash, created_at, role) VALUES (?, ?, ?, 'super')",
+                (super_name, hash_password(super_pass), datetime.now().isoformat()),
+            )
+        else:
+            conn.execute("UPDATE users SET role = 'super' WHERE id = ?", (existing_super["id"],))
+
         existing = conn.execute("SELECT COUNT(*) FROM shifts").fetchone()[0]
         if existing == 0:
             conn.executemany(
                 "INSERT INTO shifts (name, start_time, end_time) VALUES (?, ?, ?)",
                 DEFAULT_SHIFTS,
-            )
-
-        if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
-            import os
-
-            from core.auth import hash_password
-
-            username = os.getenv("ADMIN_USERNAME", "admin")
-            password = os.getenv("ADMIN_PASSWORD", "admin123")
-            conn.execute(
-                "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-                (username, hash_password(password), datetime.now().isoformat()),
             )
 
 
@@ -297,10 +306,91 @@ def get_open_session(employee_id: str) -> dict | None:
 def get_user(username: str) -> dict | None:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, role FROM users WHERE username = ?",
             (username.strip(),),
         ).fetchone()
     return dict(row) if row else None
+
+
+MAX_ADMINS = 3
+
+
+def public_user(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "role": row.get("role") or "admin",
+        "created_at": row.get("created_at"),
+    }
+
+
+def list_users() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, username, role, created_at FROM users ORDER BY role DESC, username"
+        ).fetchall()
+    return [public_user(dict(r)) for r in rows]
+
+
+def count_admins() -> int:
+    with get_connection() as conn:
+        n = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
+    return int(n)
+
+
+def add_admin(username: str, password_hash: str) -> dict:
+    if count_admins() >= MAX_ADMINS:
+        raise ValueError(f"Maximum of {MAX_ADMINS} admins")
+    now = datetime.now().isoformat()
+    with get_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO users (username, password_hash, created_at, role) VALUES (?, ?, ?, 'admin')",
+            (username.strip(), password_hash, now),
+        )
+        row = conn.execute(
+            "SELECT id, username, role, created_at FROM users WHERE id = ?",
+            (cur.lastrowid,),
+        ).fetchone()
+    return public_user(dict(row))
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, username, password_hash, role, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_admin(user_id: int, *, username: str | None = None, password_hash: str | None = None) -> dict | None:
+    current = get_user_by_id(user_id)
+    if current is None or current.get("role") == "super":
+        return None
+    next_name = (username or current["username"]).strip()
+    next_hash = password_hash or current["password_hash"]
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE users SET username = ?, password_hash = ? WHERE id = ? AND role = 'admin'",
+            (next_name, next_hash, user_id),
+        )
+    updated = get_user_by_id(user_id)
+    return public_user(updated) if updated else None
+
+
+def set_super_password(password_hash: str) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            "UPDATE users SET password_hash = ? WHERE role = 'super'",
+            (password_hash,),
+        )
+        return cur.rowcount > 0
+
+
+def delete_admin(user_id: int) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM users WHERE id = ? AND role = 'admin'", (user_id,))
+        return cur.rowcount > 0
 
 
 def delete_shift(shift_id: int) -> bool:

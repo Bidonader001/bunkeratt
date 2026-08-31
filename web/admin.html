@@ -2,43 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Admin · ACCESS PASS</title>
   <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
   <div id="login-screen" class="login-screen">
     <form id="login-form" class="login-card">
       <img src="/assets/logo.png" alt="ACCESS PASS" />
-      <p class="eyebrow">ADMIN</p>
+      <p class="eyebrow">Administration</p>
       <h1>Sign in</h1>
-      <label>USERNAME <input id="login-user" autocomplete="username" /></label>
-      <label>PASSWORD <input id="login-pass" type="password" autocomplete="current-password" /></label>
-      <button class="primary" type="submit">ENTER</button>
+      <label>Username <input id="login-user" autocomplete="username" /></label>
+      <label>Password <input id="login-pass" type="password" autocomplete="current-password" /></label>
+      <button class="primary" type="submit">Enter console</button>
       <p id="login-status" class="status"></p>
     </form>
   </div>
 
   <div id="app-shell" class="app-shell hidden">
     <aside class="sidebar">
-      <img class="logo" src="/assets/logo.png" alt="ACCESS PASS" />
+      <div class="sidebar-brand">
+        <img class="logo" src="/assets/logo.png" alt="ACCESS PASS" />
+        <button id="btn-logout" class="nav-btn sidebar-logout" type="button">Sign out</button>
+      </div>
       <nav>
-        <button class="nav-btn active" data-page="register">REGISTER</button>
-        <button class="nav-btn" data-page="people">PEOPLE</button>
-        <button class="nav-btn" data-page="shifts">SHIFTS</button>
-        <button class="nav-btn" data-page="reports">REPORTS</button>
+        <button class="nav-btn active" data-page="register">Register</button>
+        <button class="nav-btn" data-page="people">People</button>
+        <button class="nav-btn" data-page="shifts">Shifts</button>
+        <button class="nav-btn" data-page="reports">Reports</button>
+        <button class="nav-btn super-only" data-page="admins" type="button">Admins</button>
       </nav>
-      <button id="btn-logout" class="nav-btn" type="button">SIGN OUT</button>
-      <a class="tagline" href="/employee">Employee screen →</a>
+      <a class="tagline" href="/employee">Open employee kiosk →</a>
     </aside>
 
     <main class="content">
       <section id="page-register" class="page active">
-        <p class="eyebrow">ADMIN</p>
+        <p class="eyebrow">Enrollment</p>
         <h1>Register employee</h1>
-        <p class="lede" id="register-lede">Auto capture with voice. At clock-in the shift is identified from time. Hours still use actual clock in/out.</p>
-        <p id="edit-banner" class="banner hidden">Editing employee — save details, or recapture the face.</p>
+        <p class="lede" id="register-lede">Five guided captures. At clock-in the shift is identified from time; hours still use actual clock in and out.</p>
+        <p id="edit-banner" class="banner hidden">Editing this person — save details, or recapture the face.</p>
 
         <div class="card form-grid-3">
           <label>
@@ -58,6 +64,7 @@
         <div class="viewfinder">
           <video id="enroll-video" autoplay playsinline muted webkit-playsinline></video>
           <div class="corners"></div>
+          <div class="scan-line"></div>
         </div>
 
         <div class="capture-row">
@@ -67,18 +74,18 @@
         </div>
 
         <div class="actions">
-          <button id="btn-auto" class="primary" type="button">START AUTO CAPTURE</button>
-          <button id="btn-save-person" class="ghost hidden" type="button">SAVE DETAILS</button>
-          <button id="btn-cancel-edit" class="ghost hidden" type="button">CANCEL EDIT</button>
-          <button id="btn-stop" class="ghost" type="button" disabled>STOP</button>
+          <button id="btn-auto" class="primary" type="button">Start auto capture</button>
+          <button id="btn-save-person" class="ghost hidden" type="button">Save details</button>
+          <button id="btn-cancel-edit" class="ghost hidden" type="button">Cancel edit</button>
+          <button id="btn-stop" class="ghost" type="button" disabled>Stop</button>
         </div>
         <p id="enroll-success" class="banner hidden">✓ EMPLOYEE REGISTERED</p>
       </section>
 
       <section id="page-people" class="page">
-        <p class="eyebrow">ADMIN</p>
+        <p class="eyebrow">Directory</p>
         <h1>Employees</h1>
-        <p class="lede">Edit name, ID, usual shift, or face. Delete removes the person and their sessions.</p>
+        <p class="lede">Edit name, ID, usual shift, or face. Deleting a person also removes their clock records.</p>
         <p id="people-status" class="status"></p>
         <div class="table-wrap">
           <table class="report-table">
@@ -96,7 +103,7 @@
       </section>
 
       <section id="page-shifts" class="page">
-        <p class="eyebrow">ADMIN</p>
+        <p class="eyebrow">Schedule</p>
         <h1>Static shifts</h1>
         <p class="lede">Clock-in auto-assigns the matching window. After midnight stays the same work date.</p>
         <div class="card form-grid-3">
@@ -104,13 +111,13 @@
           <label>START <input id="shift-start" type="time" value="20:00" /></label>
           <label>END <input id="shift-end" type="time" value="04:00" /></label>
         </div>
-        <button id="btn-add-shift" class="primary" type="button">ADD SHIFT</button>
+        <button id="btn-add-shift" class="primary" type="button">Add shift</button>
         <p id="shift-status" class="status"></p>
         <div id="shift-list" class="log-list"></div>
       </section>
 
       <section id="page-reports" class="page">
-        <p class="eyebrow">ADMIN</p>
+        <p class="eyebrow">Attendance</p>
         <h1>Hours report</h1>
         <p class="lede">Daily, weekly, or monthly. Under 8h red · 8h green · over 8h purple. Late is flagged; hours are still actual time worked.</p>
         <div class="card form-grid-3">
@@ -147,6 +154,40 @@
             </thead>
             <tbody id="report-body"></tbody>
           </table>
+        </div>
+      </section>
+
+      <section id="page-admins" class="page">
+        <p class="eyebrow">Super admin</p>
+        <h1>Admins</h1>
+        <p class="lede">You can create up to three admins. They can enroll people, manage shifts, and run reports. Only you can add them or change their passwords.</p>
+        <p id="admin-quota" class="muted"></p>
+        <div class="card form-grid-3">
+          <label>USERNAME <input id="staff-user" autocomplete="off" /></label>
+          <label>PASSWORD <input id="staff-pass" type="password" autocomplete="new-password" /></label>
+          <div class="actions report-actions">
+            <button id="btn-add-admin" class="primary" type="button">Add admin</button>
+          </div>
+        </div>
+        <p id="staff-status" class="status"></p>
+        <div class="table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="staff-body"></tbody>
+          </table>
+        </div>
+        <h2 class="staff-own">Your password</h2>
+        <div class="card form-grid">
+          <label>NEW PASSWORD <input id="super-pass" type="password" autocomplete="new-password" /></label>
+          <div class="actions report-actions">
+            <button id="btn-super-pass" class="ghost" type="button">Update my password</button>
+          </div>
         </div>
       </section>
     </main>

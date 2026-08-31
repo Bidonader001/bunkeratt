@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from core import db, reports
-from core.auth import create_token, read_token, verify_password
+from core.auth import create_token, hash_password, read_token, verify_password
 from core.face_engine import MATCH_THRESHOLD, FaceEngine
 from core.face_quality import validate_enrollment_face
 from core.images import decode_image_b64
@@ -70,6 +70,12 @@ def require_admin(
     user = read_token(raw)
     if not user:
         raise HTTPException(status_code=401, detail="Session expired. Sign in again.")
+    return user
+
+
+def require_super(user: dict = Depends(require_admin)) -> dict:
+    if user.get("role") != "super":
+        raise HTTPException(status_code=403, detail="Super admin only")
     return user
 
 
@@ -165,6 +171,20 @@ class LoginBody(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class AdminCreateBody(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class AdminUpdateBody(BaseModel):
+    username: str | None = Field(default=None, min_length=1, max_length=64)
+    password: str | None = Field(default=None, min_length=6, max_length=128)
+
+
+class SuperPasswordBody(BaseModel):
+    password: str = Field(min_length=6, max_length=128)
+
+
 def _hhmm(value: str) -> str:
     parts = value.strip().split(":")
     if len(parts) < 2:
@@ -202,11 +222,65 @@ def login(body: LoginBody):
     user = db.get_user(body.username)
     if not user or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Wrong username or password")
-    return {"token": create_token(user["username"]), "username": user["username"]}
+    role = user.get("role") or "admin"
+    return {
+        "token": create_token(user["username"], role),
+        "username": user["username"],
+        "role": role,
+    }
 
 
 @app.get("/api/v1/auth/me")
-def auth_me(_: str = Depends(require_admin)):
+def auth_me(user: dict = Depends(require_admin)):
+    return {"ok": True, "username": user["username"], "role": user["role"]}
+
+
+@app.get("/api/v1/staff")
+def list_staff(_: dict = Depends(require_super)):
+    db.init_db()
+    return {"admins_used": db.count_admins(), "admins_max": db.MAX_ADMINS, "users": db.list_users()}
+
+
+@app.post("/api/v1/staff")
+def create_staff(body: AdminCreateBody, _: dict = Depends(require_super)):
+    db.init_db()
+    if db.get_user(body.username):
+        raise HTTPException(status_code=409, detail="Username already exists")
+    try:
+        return db.add_admin(body.username, hash_password(body.password))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.patch("/api/v1/staff/me")
+def update_super_password(body: SuperPasswordBody, user: dict = Depends(require_super)):
+    db.init_db()
+    db.set_super_password(hash_password(body.password))
+    return {"ok": True, "username": user["username"]}
+
+
+@app.patch("/api/v1/staff/{user_id}")
+def update_staff(user_id: int, body: AdminUpdateBody, _: dict = Depends(require_super)):
+    db.init_db()
+    target = db.get_user_by_id(user_id)
+    if not target or target.get("role") != "admin":
+        raise HTTPException(status_code=404, detail="Admin not found")
+    if body.username:
+        clash = db.get_user(body.username)
+        if clash and clash["id"] != user_id:
+            raise HTTPException(status_code=409, detail="Username already exists")
+    pwd = hash_password(body.password) if body.password else None
+    updated = db.update_admin(user_id, username=body.username, password_hash=pwd)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    return updated
+
+
+@app.delete("/api/v1/staff/{user_id}")
+def remove_staff(user_id: int, _: dict = Depends(require_super)):
+    db.init_db()
+    if not db.delete_admin(user_id):
+        raise HTTPException(status_code=404, detail="Admin not found")
     return {"ok": True}
 
 

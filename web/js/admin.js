@@ -27,6 +27,7 @@ let autoTimer = null;
 let autoBusy = false;
 let running = false;
 let editingId = null;
+let currentRole = "admin";
 
 function renderDots() {
   dotsEl.innerHTML = "";
@@ -36,6 +37,11 @@ function renderDots() {
     dotsEl.appendChild(s);
   }
   countEl.textContent = `${captures.length} / ${CAPTURES}`;
+}
+
+function applyRole(role) {
+  currentRole = role === "super" ? "super" : "admin";
+  document.body.classList.toggle("is-super", currentRole === "super");
 }
 
 function showApp(ok) {
@@ -50,7 +56,8 @@ async function ensureAuth() {
     return false;
   }
   try {
-    await api("/auth/me");
+    const me = await api("/auth/me");
+    applyRole(me.role);
     showApp(true);
     return true;
   } catch {
@@ -73,6 +80,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
       }),
     });
     localStorage.setItem("access_pass_token", data.token);
+    applyRole(data.role);
     showApp(true);
     showPage("register");
   } catch (err) {
@@ -117,6 +125,13 @@ async function showPage(key) {
   if (key === "people") loadPeople();
   if (key === "shifts") loadShiftList();
   if (key === "reports") loadReports();
+  if (key === "admins") {
+    if (currentRole !== "super") {
+      showPage("register");
+      return;
+    }
+    loadStaff();
+  }
 }
 
 function setEditing(person) {
@@ -296,7 +311,7 @@ async function loadShiftList() {
           <span class="granted-tag">${s.start_time} → ${s.end_time}</span>
         </header>
         <p class="muted">${s.end_time <= s.start_time ? "Overnight — same work date after midnight" : "Same calendar day"}</p>
-        <button class="ghost small-del" data-del-shift="${s.id}" type="button">DELETE</button>
+        <button class="ghost small-del danger" data-del-shift="${s.id}" type="button">Delete</button>
       </article>`
     )
     .join("");
@@ -402,8 +417,8 @@ async function loadPeople() {
         <td>${p.employee_id}</td>
         <td>${p.shift_name || "Auto at clock-in"}</td>
         <td class="people-actions">
-          <button class="ghost small-del" type="button" data-edit-person="${p.employee_id}">EDIT</button>
-          <button class="ghost small-del" type="button" data-del-person="${p.employee_id}">DELETE</button>
+          <button class="ghost small-del" type="button" data-edit-person="${p.employee_id}">Edit</button>
+          <button class="ghost small-del danger" type="button" data-del-person="${p.employee_id}">Delete</button>
         </td>
       </tr>`
     )
@@ -439,6 +454,92 @@ document.getElementById("people-body").addEventListener("click", async (e) => {
 
 document.getElementById("report-date").addEventListener("change", loadReports);
 document.getElementById("report-period").addEventListener("change", loadReports);
+
+async function loadStaff() {
+  const data = await api("/staff");
+  document.getElementById("admin-quota").textContent =
+    `${data.admins_used} of ${data.admins_max} admin seats used`;
+  const body = document.getElementById("staff-body");
+  body.innerHTML = data.users
+    .map((u) => {
+      const role = u.role === "super" ? "Super admin" : "Admin";
+      const actions =
+        u.role === "super"
+          ? `<span class="muted">You</span>`
+          : `<button class="ghost small-del" type="button" data-reset-staff="${u.id}" data-name="${u.username}">Reset password</button>
+             <button class="ghost small-del danger" type="button" data-del-staff="${u.id}">Remove</button>`;
+      return `<tr>
+        <td>${u.username}</td>
+        <td>${role}</td>
+        <td class="people-actions">${actions}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+document.getElementById("btn-add-admin").addEventListener("click", async () => {
+  const status = document.getElementById("staff-status");
+  const username = document.getElementById("staff-user").value.trim();
+  const password = document.getElementById("staff-pass").value;
+  status.textContent = "";
+  try {
+    await api("/staff", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    document.getElementById("staff-user").value = "";
+    document.getElementById("staff-pass").value = "";
+    status.textContent = "Admin added.";
+    loadStaff();
+  } catch (e) {
+    status.textContent = e.message;
+  }
+});
+
+document.getElementById("staff-body").addEventListener("click", async (e) => {
+  const status = document.getElementById("staff-status");
+  const del = e.target.closest("[data-del-staff]");
+  const reset = e.target.closest("[data-reset-staff]");
+  if (del) {
+    if (!confirm("Remove this admin?")) return;
+    try {
+      await api(`/staff/${del.getAttribute("data-del-staff")}`, { method: "DELETE" });
+      status.textContent = "Admin removed.";
+      loadStaff();
+    } catch (err) {
+      status.textContent = err.message;
+    }
+    return;
+  }
+  if (reset) {
+    const next = prompt(`New password for ${reset.getAttribute("data-name")}`);
+    if (!next) return;
+    try {
+      await api(`/staff/${reset.getAttribute("data-reset-staff")}`, {
+        method: "PATCH",
+        body: JSON.stringify({ password: next }),
+      });
+      status.textContent = "Password updated.";
+    } catch (err) {
+      status.textContent = err.message;
+    }
+  }
+});
+
+document.getElementById("btn-super-pass").addEventListener("click", async () => {
+  const status = document.getElementById("staff-status");
+  const password = document.getElementById("super-pass").value;
+  try {
+    await api("/staff/me", {
+      method: "PATCH",
+      body: JSON.stringify({ password }),
+    });
+    document.getElementById("super-pass").value = "";
+    status.textContent = "Your password was updated.";
+  } catch (e) {
+    status.textContent = e.message;
+  }
+});
 
 renderDots();
 ensureAuth().then((ok) => {

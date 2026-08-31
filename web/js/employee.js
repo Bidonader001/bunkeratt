@@ -17,6 +17,9 @@ function setUi(label, title, detail, showOut) {
   hello.textContent = title;
   sub.textContent = detail;
   btnOut.classList.toggle("hidden", !showOut);
+  document.body.dataset.state = String(label || "scanning")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 async function tick() {
@@ -173,3 +176,15 @@ async function bootCamera() {
 
 btnCam.addEventListener("click", bootCamera);
 bootCamera();
+
+function paintClock() {
+  const el = document.getElementById("kiosk-time");
+  if (!el) return;
+  el.textContent = new Date().toLocaleString([], {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+paintClock();
+setInterval(paintClock, 15000);
